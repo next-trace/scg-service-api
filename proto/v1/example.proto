@@ -1,0 +1,195 @@
+syntax = "proto3";
+
+package example.v1;
+
+option go_package = "github.com/hbttundar/scg-service-base/gen/go/example/v1;examplev1";
+
+// Import standard protobuf types
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// ExampleService demonstrates a simple gRPC service definition.
+service ExampleService {
+  // GetItem retrieves an item by ID.
+  rpc GetItem(GetItemRequest) returns (GetItemResponse) {}
+  
+  // ListItems retrieves a list of items with optional filtering.
+  rpc ListItems(ListItemsRequest) returns (ListItemsResponse) {}
+  
+  // CreateItem creates a new item.
+  rpc CreateItem(CreateItemRequest) returns (CreateItemResponse) {}
+  
+  // UpdateItem updates an existing item.
+  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse) {}
+  
+  // DeleteItem deletes an item by ID.
+  rpc DeleteItem(DeleteItemRequest) returns (google.protobuf.Empty) {}
+  
+  // StreamItems streams items as they are updated.
+  rpc StreamItems(StreamItemsRequest) returns (stream ItemUpdate) {}
+}
+
+// Item represents a domain entity.
+message Item {
+  // Unique identifier for the item.
+  string id = 1;
+  
+  // Name of the item.
+  string name = 2;
+  
+  // Description of the item.
+  string description = 3;
+  
+  // Creation timestamp.
+  google.protobuf.Timestamp created_at = 4;
+  
+  // Last update timestamp.
+  google.protobuf.Timestamp updated_at = 5;
+  
+  // Tags associated with the item.
+  repeated string tags = 6;
+  
+  // Status of the item.
+  ItemStatus status = 7;
+}
+
+// ItemStatus represents the possible states of an item.
+enum ItemStatus {
+  // Default value, should not be used.
+  ITEM_STATUS_UNSPECIFIED = 0;
+  
+  // Item is active and available.
+  ITEM_STATUS_ACTIVE = 1;
+  
+  // Item is inactive but can be reactivated.
+  ITEM_STATUS_INACTIVE = 2;
+  
+  // Item has been deleted and cannot be recovered.
+  ITEM_STATUS_DELETED = 3;
+}
+
+// GetItemRequest is the request message for GetItem.
+message GetItemRequest {
+  // ID of the item to retrieve.
+  string id = 1;
+}
+
+// GetItemResponse is the response message for GetItem.
+message GetItemResponse {
+  // The requested item.
+  Item item = 1;
+}
+
+// ListItemsRequest is the request message for ListItems.
+message ListItemsRequest {
+  // Maximum number of items to return.
+  int32 page_size = 1;
+  
+  // Token for pagination.
+  string page_token = 2;
+  
+  // Filter by status.
+  ItemStatus status = 3;
+  
+  // Filter by tags (items must have all specified tags).
+  repeated string tags = 4;
+}
+
+// ListItemsResponse is the response message for ListItems.
+message ListItemsResponse {
+  // List of items.
+  repeated Item items = 1;
+  
+  // Token for retrieving the next page.
+  string next_page_token = 2;
+  
+  // Total number of items matching the request.
+  int32 total_size = 3;
+}
+
+// CreateItemRequest is the request message for CreateItem.
+message CreateItemRequest {
+  // Name of the item.
+  string name = 1;
+  
+  // Description of the item.
+  string description = 2;
+  
+  // Tags associated with the item.
+  repeated string tags = 3;
+}
+
+// CreateItemResponse is the response message for CreateItem.
+message CreateItemResponse {
+  // The created item.
+  Item item = 1;
+}
+
+// UpdateItemRequest is the request message for UpdateItem.
+message UpdateItemRequest {
+  // ID of the item to update.
+  string id = 1;
+  
+  // New name for the item (if provided).
+  optional string name = 2;
+  
+  // New description for the item (if provided).
+  optional string description = 3;
+  
+  // New tags for the item (if provided).
+  repeated string tags = 4;
+  
+  // New status for the item (if provided).
+  optional ItemStatus status = 5;
+}
+
+// UpdateItemResponse is the response message for UpdateItem.
+message UpdateItemResponse {
+  // The updated item.
+  Item item = 1;
+}
+
+// DeleteItemRequest is the request message for DeleteItem.
+message DeleteItemRequest {
+  // ID of the item to delete.
+  string id = 1;
+  
+  // Whether to perform a hard delete.
+  bool hard_delete = 2;
+}
+
+// StreamItemsRequest is the request message for StreamItems.
+message StreamItemsRequest {
+  // Filter by status.
+  ItemStatus status = 1;
+  
+  // Filter by tags (items must have all specified tags).
+  repeated string tags = 2;
+}
+
+// ItemUpdate represents an update to an item in the stream.
+message ItemUpdate {
+  // The updated item.
+  Item item = 1;
+  
+  // Type of update.
+  UpdateType update_type = 2;
+  
+  // Timestamp of the update.
+  google.protobuf.Timestamp update_time = 3;
+}
+
+// UpdateType represents the type of update in a stream.
+enum UpdateType {
+  // Default value, should not be used.
+  UPDATE_TYPE_UNSPECIFIED = 0;
+  
+  // Item was created.
+  UPDATE_TYPE_CREATED = 1;
+  
+  // Item was updated.
+  UPDATE_TYPE_UPDATED = 2;
+  
+  // Item was deleted.
+  UPDATE_TYPE_DELETED = 3;
+}

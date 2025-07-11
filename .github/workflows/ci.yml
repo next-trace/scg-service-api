@@ -1,0 +1,167 @@
+name: Go CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
+
+  mod-tidy-check:
+    name: Verify Go Modules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: true
+
+      - name: Check if modules are tidy
+        run: |
+          go mod tidy
+          if ! git diff --exit-code go.mod go.sum; then
+            echo "go.mod or go.sum is not tidy. Please run 'go mod tidy' and commit changes."
+            exit 1
+          fi
+
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ['1.20', '1.21']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run tests with coverage
+        run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - name: Upload coverage to Codecov
+        if: matrix.go-version == '1.21' && matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.txt
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: true
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build -v ./...
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: true
+
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: ./...
+
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: true
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  docs:
+    name: Generate Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: true
+
+      - name: Install godoc
+        run: go install golang.org/x/tools/cmd/godoc@latest
+
+      - name: Install pkgsite
+        run: go install golang.org/x/pkgsite/cmd/pkgsite@latest
+
+      - name: Verify documentation can be generated
+        run: |
+          # This just verifies that godoc can parse the code without errors
+          # In a real setup, you might want to generate and publish the docs
+          go doc -all ./... > /dev/null
